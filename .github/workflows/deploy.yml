@@ -18,10 +18,10 @@ jobs:
         id: set-env
         run: |
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
-            echo "DEPLOY_PATH=/apps/production" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/root/srv876994/production" >> $GITHUB_ENV
             echo "STACK=prod" >> $GITHUB_ENV
           else
-            echo "DEPLOY_PATH=/apps/staging" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/root/srv876994/staging" >> $GITHUB_ENV
             echo "STACK=staging" >> $GITHUB_ENV
           fi
 
