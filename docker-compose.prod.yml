@@ -13,7 +13,7 @@ services:
     networks:
       - prod-network
     volumes:
-      - .:/app:ro
+      - .:/app
     restart: unless-stopped
     deploy:
       resources:
