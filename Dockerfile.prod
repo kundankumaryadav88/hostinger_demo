@@ -1,0 +1,16 @@
+FROM node:22.14.0
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Bundle app source
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Use node directly in production, not nodemon
+CMD ["node", "index.js"]
