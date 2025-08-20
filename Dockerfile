@@ -2,18 +2,22 @@ FROM node:22.14.0
 
 WORKDIR /app
 
-# Install app dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install && \
     npm install -g nodemon && \
-    npm install express && \
-    chown -R node:node /app
+    chown -R node:node .
 
 # Bundle app source
-COPY . .
+COPY --chown=node:node . .
 
 # Switch to non-root user
 USER node
+
+# Verify express installation
+RUN node -e "require('express')"
 
 # Expose port
 EXPOSE 3000
