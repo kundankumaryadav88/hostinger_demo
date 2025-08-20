@@ -1,0 +1,52 @@
+name: Deploy to Hostinger VPS (Docker)
+
+on:
+  push:
+    branches:
+      - main     # deploys to production
+      - staging  # deploys to staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASS }}
+          script: |
+            cd /root/hostinger_demo
+            
+            # Set deployment environment based on branch
+            if [[ ${GITHUB_REF##*/} == "main" ]]; then
+              COMPOSE_FILE="docker-compose.prod.yml"
+              ENV_FILE=".env.production"
+            else
+              COMPOSE_FILE="docker-compose.staging.yml"
+              ENV_FILE=".env.staging"
+            fi
+            
+            # Pull latest changes
+            git pull origin ${GITHUB_REF##*/}
+            
+            # Stop and remove existing containers
+            docker compose -f $COMPOSE_FILE down -v
+            
+            # Copy the appropriate .env file
+            cp $ENV_FILE .env
+            
+            # Build and start containers
+            docker compose -f $COMPOSE_FILE up -d --build
+            
+            # Cleanup
+            docker system prune -af --volumes
+            
+            # Verify deployment
+            docker compose -f $COMPOSE_FILE ps
+            docker compose -f $COMPOSE_FILE logs --tail=50
