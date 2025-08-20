@@ -1,52 +1,73 @@
-name: Deploy to Hostinger VPS (Docker)
+name: CI/CD Deploy
 
 on:
   push:
     branches:
-      - main     # deploys to production
-      - staging  # deploys to staging
+      - main       # Deploy to production
+      - staging    # Deploy to staging
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Set environment
+        id: set-env
+        run: |
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
+            echo "DEPLOY_PATH=/apps/production" >> $GITHUB_ENV
+            echo "STACK=prod" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_PATH=/apps/staging" >> $GITHUB_ENV
+            echo "STACK=staging" >> $GITHUB_ENV
+          fi
+
+      - name: Copy files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASS }}
+          source: "."
+          target: "${{ env.DEPLOY_PATH }}"
+
+      - name: Create environment file
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASS }}
           script: |
-            cd /root/hostinger_demo
-            
-            # Set deployment environment based on branch
-            if [[ ${GITHUB_REF##*/} == "main" ]]; then
-              COMPOSE_FILE="docker-compose.prod.yml"
-              ENV_FILE=".env.production"
+            cd ${{ env.DEPLOY_PATH }}
+            if [[ "${{ env.STACK }}" == "prod" ]]; then
+              cp .env.production .env
             else
-              COMPOSE_FILE="docker-compose.staging.yml"
-              ENV_FILE=".env.staging"
+              cp .env.staging .env
             fi
+
+      - name: Deploy with Docker Compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASS }}
+          script: |
+            cd ${{ env.DEPLOY_PATH }}
             
-            # Pull latest changes
-            git pull origin ${GITHUB_REF##*/}
-            
-            # Stop and remove existing containers
-            docker compose -f $COMPOSE_FILE down -v
-            
-            # Copy the appropriate .env file
-            cp $ENV_FILE .env
+            # Use the appropriate compose file based on environment
+            COMPOSE_FILE="docker-compose.${{ env.STACK }}.yml"
             
             # Build and start containers
-            docker compose -f $COMPOSE_FILE up -d --build
+            docker compose -f $COMPOSE_FILE down --remove-orphans
+            docker compose -f $COMPOSE_FILE build --no-cache
+            docker compose -f $COMPOSE_FILE up -d
             
             # Cleanup
             docker system prune -af --volumes
             
             # Verify deployment
             docker compose -f $COMPOSE_FILE ps
-            docker compose -f $COMPOSE_FILE logs --tail=50
+            docker compose -f $COMPOSE_FILE logs --tail=20
