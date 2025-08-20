@@ -7,6 +7,8 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install && \
+    npm install express && \
+    npm install -g npm@latest && \
     chown -R node:node .
 
 # Bundle app source
@@ -14,9 +16,6 @@ COPY --chown=node:node . .
 
 # Switch to non-root user
 USER node
-
-# Verify express installation
-RUN node -e "require('express')"
 
 # Expose port
 EXPOSE 3000
