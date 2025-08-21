@@ -6,17 +6,10 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install && \
-    chown -R node:node .
+RUN npm install
 
 # Bundle app source
-COPY --chown=node:node . .
-
-# Switch to non-root user
-USER node
-
-# Verify express installation
-RUN node -e "require('express')"
+COPY . .
 
 # Expose port
 EXPOSE 3000
